@@ -19,7 +19,7 @@ data/*.csv
 *.csv
 
 # Ignore generated evaluation reports
-model_evaluation_report.txt
+model_report.txt
 
 # =========================================
 # IDEs & OS Files
@@ -31,3 +31,6 @@ model_evaluation_report.txt
 # Windows / Mac OS system files
 Thumbs.db
 .DS_Store
+
+# pkl files
+models/*.pkl
