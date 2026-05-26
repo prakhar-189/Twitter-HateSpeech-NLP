@@ -1,0 +1,33 @@
+# =========================================
+# Python & Environment
+# =========================================
+# Virtual environments
+venv/
+env/
+.env
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================================
+# Data & Outputs
+# =========================================
+# Ignore the dataset (Avoid pushing large/raw data to GitHub)
+data/*.csv
+*.csv
+
+# Ignore generated evaluation reports
+model_evaluation_report.txt
+
+# =========================================
+# IDEs & OS Files
+# =========================================
+# VS Code / PyCharm settings
+.vscode/
+.idea/
+
+# Windows / Mac OS system files
+Thumbs.db
+.DS_Store
