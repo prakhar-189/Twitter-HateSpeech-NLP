@@ -1,4 +1,5 @@
 import os
+import joblib
 from src.preprocess import load_and_preprocess_data
 from src.train import train_baseline_model, train_balanced_model, perform_grid_search
 from src.evaluate import evaluate_model
@@ -36,6 +37,19 @@ def main():
     
     # 5. Final Evaluation on Test Set
     evaluate_model(best_model, X_test_tfidf, y_test, "Best Estimator (Test Set)")
+
+    print("\n=========================================")
+    print(" Saving Model Artifacts for Streamlit")
+    print("=========================================\n")
+    
+    # Create models directory if it doesn't exist
+    os.makedirs('models', exist_ok=True)
+    
+    # Save the vectorizer and the best model
+    joblib.dump(tfidf_vectorizer, 'models/tfidf_vectorizer.pkl')
+    joblib.dump(best_model, 'models/best_model.pkl')
+    
+    print("[*] Successfully saved to /models directory!")
 
 if __name__ == "__main__":
     main()
