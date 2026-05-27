@@ -2,6 +2,7 @@ import streamlit as st
 import joblib
 import pandas as pd
 from src.preprocess import clean_tweets
+from llm_agent import analyze_with_llm
 
 # --- 1. Page Configuration ---
 st.set_page_config(page_title="Twitter Moderation Hub", page_icon="🛡️", layout="centered")
@@ -120,6 +121,13 @@ if st.button("Run Diagnostics", type="primary", use_container_width=True):
                     <p class="confidence-text">The model is <b>{toxic_prob:.1f}%</b> confident this content violates platform safety guidelines.</p>
                 </div>
                 """
+                st.markdown(html_result, unsafe_allow_html=True)
+                # --- NEW: Trigger the LLM Agent ---
+                st.markdown("### 🤖 Agentic Policy Review")
+                with st.spinner("Routing to LLM for deep context analysis..."):
+                    llm_explanation = analyze_with_llm(user_input)
+                    
+                    st.info(f"**Senior AI Judge:** {llm_explanation}")
             else:
                 html_result = f"""
                 <div class="result-card-safe">
@@ -127,6 +135,13 @@ if st.button("Run Diagnostics", type="primary", use_container_width=True):
                     <p class="confidence-text">The model is <b>{safe_prob:.1f}%</b> confident this content adheres to platform safety guidelines.</p>
                 </div>
                 """
+
+                # Optional grey-area routing: If it's safe, but the model is unsure (e.g., toxic prob is > 40%)
+                if toxic_prob > 40.0:
+                    st.warning("⚠️ Borderline Content Detected. Routing to LLM for secondary review...")
+                    with st.spinner("Analyzing nuance..."):
+                        llm_explanation = analyze_with_llm(user_input)
+                        st.info(f"**Secondary AI Review:** {llm_explanation}")    
             
             # Render the HTML card
             st.markdown(html_result, unsafe_allow_html=True)
