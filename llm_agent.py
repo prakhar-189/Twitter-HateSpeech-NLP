@@ -1,7 +1,27 @@
 # src/llm_agent.py
+# -------------------------------------------------
+# Author : Prakhar Srivastava
+# Date : 2026-05-27
+# Description : This module contains a function to route flagged tweets to a local LLM (like LLaMA) acting as a Trust & Safety Judge. The function takes the tweet text as input and returns a natural language explanation of the policy violation, if any, based on the LLM's analysis.
+# -------------------------------------------------
+
+
+# =================================================
+# Imports
+# --------------------------------------------
+# langchain_community.llms : For interfacing with local LLMs like LLaMA.
+# langchain_core.prompts : For creating prompt templates to guide the LLM's analysis.
+# =================================================
 from langchain_community.llms import Ollama
 from langchain_core.prompts import PromptTemplate
 
+
+# =================================================
+# analyze_with_llm Function
+# --------------------------------------------
+# This function routes the tweet to a local LLM to act as a Trust & Safety Judge. 
+# It takes the tweet text and an optional model name (defaulting to "llama3") as input, and returns a natural language explanation of the policy violation based on the LLM's analysis.
+# =================================================
 def analyze_with_llm(tweet_text, model_name="llama3"):
     """
     Routes the tweet to a local LLM to act as a Trust & Safety Judge.
@@ -28,7 +48,6 @@ def analyze_with_llm(tweet_text, model_name="llama3"):
         template=template
     )
     
-    # --- THIS IS THE MODERN LCEL SYNTAX ---
     # We pipe the prompt directly into the LLM
     chain = prompt | llm 
     
