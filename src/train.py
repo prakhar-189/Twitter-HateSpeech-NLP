@@ -53,7 +53,6 @@ def perform_grid_search(X_train, y_train):
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     
     grid_search = GridSearchCV(
-        # CHANGED: Added solver='lbfgs' explicitly (it is the default, but good practice)
         estimator=LogisticRegression(class_weight='balanced', solver='lbfgs', max_iter=1000, random_state=42),
         param_grid=param_grid,
         scoring='f1',
