@@ -1,14 +1,36 @@
+# app.py
+# ----------------------------------------------------
+# Author : Prakhar Srivastava
+# Date : 2026-05-27
+# Description : This is the Streamlit app that serves as the user interface for the Twitter Hate Speech NLP pipeline. It allows users to input tweet text, processes it through the trained model, and displays the classification results along with an explanation of the model's decision. Additionally, it integrates a local LLM agent to provide deeper context analysis for flagged tweets.
+# ----------------------------------------------------
+
+
+# =================================================
+# Imports
+# --------------------------------------------
+# streamlit : For building the interactive web application.
+# joblib : For loading the trained model and TF-IDF vectorizer.
+# pandas : For data manipulation and display.
+# src.preprocess : For cleaning the input tweet text before classification.
+# llm_agent : For routing flagged tweets to a local LLM for deeper analysis and explanation.
+# =================================================
 import streamlit as st
 import joblib
 import pandas as pd
 from src.preprocess import clean_tweets
 from llm_agent import analyze_with_llm
 
-# --- 1. Page Configuration ---
+
+# Page Configuration
 st.set_page_config(page_title="Twitter Moderation Hub", page_icon="🛡️", layout="centered")
 
-# --- 2. Custom HTML/CSS Injection ---
-# This function writes raw CSS into the Streamlit app to style our custom HTML components.
+
+# =================================================
+# Custom CSS Injection
+# --------------------------------------------
+# This function injects custom CSS styles into the Streamlit app to enhance the visual presentation of the results, including custom cards for toxic and safe classifications, typography styling, and a more polished UI.
+# =================================================
 def inject_custom_css():
     st.markdown("""
     <style>
@@ -68,7 +90,12 @@ def inject_custom_css():
 # Run the CSS injection
 inject_custom_css()
 
-# --- 3. Load Model Artifacts ---
+
+# ==================================================
+# Load Model Artifacts
+# ---------------------------------------------
+# This function loads the trained TF-IDF vectorizer and the best Logistic Regression model from the 'models' directory. It uses Streamlit's caching mechanism to avoid reloading the artifacts on every interaction, improving performance. If the artifacts are not found, it displays an error message and stops the app.
+# ==================================================
 @st.cache_resource 
 def load_artifacts():
     vectorizer = joblib.load('models/tfidf_vectorizer.pkl')
@@ -81,7 +108,6 @@ except FileNotFoundError:
     st.error("Model artifacts not found! Please run main.py first to generate the .pkl files.")
     st.stop()
 
-# --- 4. App UI Elements ---
 # Using custom HTML for the title instead of st.title()
 st.markdown('<div class="twitter-header">🛡️ Trust & Safety AI Monitor</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Internal tool for automated hate speech classification using TF-IDF and Logistic Regression.</div>', unsafe_allow_html=True)
@@ -111,7 +137,7 @@ if st.button("Run Diagnostics", type="primary", use_container_width=True):
             safe_prob = probabilities[0] * 100
             toxic_prob = probabilities[1] * 100
 
-            # --- Custom HTML Output ---
+            # Custom HTML Output
             st.markdown("### Classification Result")
             
             if prediction == 1:
@@ -122,7 +148,6 @@ if st.button("Run Diagnostics", type="primary", use_container_width=True):
                 </div>
                 """
                 st.markdown(html_result, unsafe_allow_html=True)
-                # --- NEW: Trigger the LLM Agent ---
                 st.markdown("### 🤖 Agentic Policy Review")
                 with st.spinner("Routing to LLM for deep context analysis..."):
                     llm_explanation = analyze_with_llm(user_input)
@@ -136,7 +161,6 @@ if st.button("Run Diagnostics", type="primary", use_container_width=True):
                 </div>
                 """
 
-                # Optional grey-area routing: If it's safe, but the model is unsure (e.g., toxic prob is > 40%)
                 if toxic_prob > 40.0:
                     st.warning("⚠️ Borderline Content Detected. Routing to LLM for secondary review...")
                     with st.spinner("Analyzing nuance..."):
@@ -146,7 +170,7 @@ if st.button("Run Diagnostics", type="primary", use_container_width=True):
             # Render the HTML card
             st.markdown(html_result, unsafe_allow_html=True)
 
-            # --- Explainability Section ---
+            # Explainability Section
             st.markdown("### Lexical Explainability")
             st.markdown(f"Text as parsed by the model: <span class='processed-text'>{cleaned_text}</span>", unsafe_allow_html=True)
             st.write("") # Spacer
