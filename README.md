@@ -81,6 +81,7 @@ Full metrics: [`models/eval_metrics.json`](models/eval_metrics.json), reproducib
 - **Consistent evaluation** — all model variants scored on the same held-out test set (accuracy, precision, recall, F1, confusion matrix), persisted to `models/eval_metrics.json`
 - **Model persistence** — saves the best model and vectorizer as `.pkl` artifacts via `joblib`
 - **Streamlit UI** — interactive web app to classify arbitrary tweet text in real time
+- **Batch export review** — upload local JSON, JSONL, NDJSON, or CSV tweet exports for batch scoring
 - **Lexical explainability** — visualizes per-term TF-IDF coefficients to show what drove each prediction
 - **LLM agentic review** — routes flagged or borderline tweets to a local LLaMA 3 model (via the current `langchain-ollama` integration) for a 2–3 sentence policy violation explanation, with a request timeout so a hung local Ollama server can't freeze the UI
 
@@ -110,6 +111,7 @@ Twitter-HateSpeech-NLP/
 │
 ├── main.py                 # Orchestrates the full training + evaluation pipeline
 ├── app.py                  # Streamlit web application
+├── tweet_export.py         # Local tweet-export parsing for batch scoring
 ├── llm_agent.py             # LangChain + Ollama LLM reviewer
 ├── requirements.txt
 ├── requirements-dev.txt
@@ -133,6 +135,7 @@ Twitter-HateSpeech-NLP/
 ### Streamlit App (`app.py`)
 
 - Accepts raw tweet text as input.
+- Accepts local tweet exports and scores each text row without live API calls.
 - Preprocesses → vectorizes → classifies using the saved model.
 - Displays a styled result card (🚨 toxic / ✅ safe) with a confidence percentage.
 - Shows a bar chart of the top TF-IDF coefficient contributions (lexical explainability).
@@ -189,6 +192,8 @@ Open the URL shown in your terminal (typically `http://localhost:8501`), paste o
 
 > **Note:** The LLM agent requires Ollama running locally. If unavailable, the ML classifier still works — the LLM step surfaces a clear error instead of hanging.
 
+To batch-review a local export, upload a `.json`, `.jsonl`, `.ndjson`, or `.csv` file with a text field such as `text`, `full_text`, `tweetText`, `tweet_text`, `content`, or `body`, then click **Run Diagnostics**. The app displays per-tweet safety scores and offers a scored CSV download. Parsing happens locally and makes no live API calls.
+
 ### Docker
 ```bash
 docker build -t twitter-hate-speech .
@@ -200,7 +205,7 @@ docker run -p 8501:8501 -v "${PWD}/models:/app/models" twitter-hate-speech
 pip install -r requirements-dev.txt
 pytest tests/ -v      # preprocessing correctness (URL/handle/stopword/hashtag stripping)
                        # + evaluate_model correctness (incl. a single-class confusion-matrix edge case)
-ruff check src tests llm_agent.py main.py app.py
+ruff check src tests llm_agent.py main.py app.py tweet_export.py
 ```
 CI (`.github/workflows/ci.yml`) runs both on every push/PR.
 
