@@ -43,25 +43,28 @@ def train_balanced_model(X_train, y_train):
 # perform_grid_search Function
 # --------------------------------------------
 # This function performs hyperparameter tuning using Stratified K-Fold cross-validation.
+# Tunes both C and penalty (the original problem statement asks for both) — 'liblinear'
+# is used as the solver since it's the one that supports both l1 and l2 penalties.
 # =================================================
 def perform_grid_search(X_train, y_train):
-    """Performs hyperparameter tuning using Stratified K-Fold."""
+    """Performs hyperparameter tuning (C and penalty) using Stratified K-Fold."""
     param_grid = {
-        'C': [0.01, 0.1, 1, 10, 100]
+        'C': [0.01, 0.1, 1, 10, 100],
+        'penalty': ['l1', 'l2'],
     }
-    
+
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    
+
     grid_search = GridSearchCV(
-        estimator=LogisticRegression(class_weight='balanced', solver='lbfgs', max_iter=1000, random_state=42),
+        estimator=LogisticRegression(class_weight='balanced', solver='liblinear', max_iter=1000, random_state=42),
         param_grid=param_grid,
         scoring='f1',
         cv=cv,
         n_jobs=-1
     )
-    
+
     print("[*] Running Grid Search. This may take a moment...")
     grid_search.fit(X_train, y_train)
-    
+
     print(f"[*] Best Parameters found: {grid_search.best_params_}")
-    return grid_search.best_estimator_
+    return grid_search.best_estimator_, grid_search.best_params_
