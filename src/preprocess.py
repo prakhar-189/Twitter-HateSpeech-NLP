@@ -14,18 +14,23 @@
 # nltk : For natural language processing tasks, including tokenization and stopword removal.
 # sklearn : For machine learning utilities, including train-test splitting and TF-IDF vectorization.
 # =================================================
-import pandas as pd
 import re
-import nltk
-from nltk.tokenize import TweetTokenizer
-from nltk.corpus import stopwords
 from collections import Counter
-from sklearn.model_selection import train_test_split
+
+import nltk
+import pandas as pd
+from nltk.corpus import stopwords
+from nltk.tokenize import TweetTokenizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
 
-
-# Ensure stopwords are downloaded
-nltk.download('stopwords', quiet=True)
+# Ensure stopwords are downloaded. Checking first avoids a network call to
+# NLTK's servers on every import (including every test/CI run) once the data
+# is already cached locally.
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords', quiet=True)
 
 
 # =================================================
