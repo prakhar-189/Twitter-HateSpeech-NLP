@@ -258,4 +258,4 @@ This project is licensed under the [MIT License](LICENSE).
 ## Author
 
 **Prakhar Srivastava**
-[github.com/prakhar-189](https://github.com/prakhar-189)
+Data Analyst, Data Scientist & AI Engineer | Machine Learning, Deep Learning and AI Automation Enthusiast
