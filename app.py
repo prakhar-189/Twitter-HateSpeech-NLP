@@ -15,12 +15,12 @@
 # src.preprocess : For cleaning the input tweet text before classification.
 # llm_agent : For routing flagged tweets to a local LLM for deeper analysis and explanation.
 # =================================================
-import streamlit as st
 import joblib
 import pandas as pd
-from src.preprocess import clean_tweets
-from llm_agent import analyze_with_llm
+import streamlit as st
 
+from llm_agent import analyze_with_llm
+from src.preprocess import clean_tweets
 
 # Page Configuration
 st.set_page_config(page_title="Twitter Moderation Hub", page_icon="🛡️", layout="centered")
@@ -177,14 +177,17 @@ if st.button("Run Diagnostics", type="primary", use_container_width=True):
             
             vocab = tfidf_vectorizer.vocabulary_
             coefs = best_model.coef_[0]
-            
+
+            # set() dedupes repeated words in the tweet — without it, a word
+            # appearing twice produced two identical rows, which set_index("Term")
+            # below would turn into a duplicate index and render oddly in the chart.
             word_impacts = []
-            for word in cleaned_text.split():
+            for word in set(cleaned_text.split()):
                 if word in vocab:
                     idx = vocab[word]
                     weight = coefs[idx]
                     word_impacts.append({"Term": word, "Toxicity Coefficient": weight})
-            
+
             if word_impacts:
                 df_impact = pd.DataFrame(word_impacts)
                 df_impact = df_impact.sort_values(by="Toxicity Coefficient", ascending=False)
