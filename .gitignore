@@ -34,3 +34,6 @@ Thumbs.db
 
 # pkl files
 models/*.pkl
+
+# Raw screen recordings (large binaries; extract a frame into outputs/ instead)
+docs/Videos/
