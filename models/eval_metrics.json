@@ -1,0 +1,45 @@
+{
+  "baseline": {
+    "dataset_name": "Baseline Model (Test Set)",
+    "accuracy": 0.9526044110746129,
+    "precision": 0.9050279329608939,
+    "recall": 0.36160714285714285,
+    "f1": 0.5167464114832536,
+    "confusion_matrix": {
+      "tn": 5928,
+      "fp": 17,
+      "fn": 286,
+      "tp": 162
+    }
+  },
+  "balanced": {
+    "dataset_name": "Balanced Model (Test Set)",
+    "accuracy": 0.9233536680744564,
+    "precision": 0.47162162162162163,
+    "recall": 0.7790178571428571,
+    "f1": 0.5875420875420876,
+    "confusion_matrix": {
+      "tn": 5554,
+      "fp": 391,
+      "fn": 99,
+      "tp": 349
+    }
+  },
+  "best": {
+    "dataset_name": "Best Estimator (Test Set)",
+    "accuracy": 0.9325825121226341,
+    "precision": 0.512743628185907,
+    "recall": 0.7633928571428571,
+    "f1": 0.6134529147982063,
+    "confusion_matrix": {
+      "tn": 5620,
+      "fp": 325,
+      "fn": 106,
+      "tp": 342
+    }
+  },
+  "best_grid_search_params": {
+    "C": 10,
+    "penalty": "l2"
+  }
+}
