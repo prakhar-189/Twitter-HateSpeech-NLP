@@ -21,6 +21,7 @@ import streamlit as st
 
 from llm_agent import analyze_with_llm
 from src.preprocess import clean_tweets
+from tweet_export import load_tweet_texts
 
 # Page Configuration
 st.set_page_config(page_title="Twitter Moderation Hub", page_icon="🛡️", layout="centered")
@@ -32,7 +33,8 @@ st.set_page_config(page_title="Twitter Moderation Hub", page_icon="🛡️", lay
 # This function injects custom CSS styles into the Streamlit app to enhance the visual presentation of the results, including custom cards for toxic and safe classifications, typography styling, and a more polished UI.
 # =================================================
 def inject_custom_css():
-    st.markdown("""
+    st.markdown(
+        """
     <style>
         /* Typography and Header Styling */
         .twitter-header {
@@ -85,7 +87,10 @@ def inject_custom_css():
             font-size: 14px;
         }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
+
 
 # Run the CSS injection
 inject_custom_css()
@@ -96,11 +101,12 @@ inject_custom_css()
 # ---------------------------------------------
 # This function loads the trained TF-IDF vectorizer and the best Logistic Regression model from the 'models' directory. It uses Streamlit's caching mechanism to avoid reloading the artifacts on every interaction, improving performance. If the artifacts are not found, it displays an error message and stops the app.
 # ==================================================
-@st.cache_resource 
+@st.cache_resource
 def load_artifacts():
-    vectorizer = joblib.load('models/tfidf_vectorizer.pkl')
-    model = joblib.load('models/best_model.pkl')
+    vectorizer = joblib.load("models/tfidf_vectorizer.pkl")
+    model = joblib.load("models/best_model.pkl")
     return vectorizer, model
+
 
 try:
     tfidf_vectorizer, best_model = load_artifacts()
@@ -110,90 +116,148 @@ except FileNotFoundError:
 
 # Using custom HTML for the title instead of st.title()
 st.markdown('<div class="twitter-header">🛡️ Trust & Safety AI Monitor</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Internal tool for automated hate speech classification using TF-IDF and Logistic Regression.</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="sub-header">Internal tool for automated hate speech classification using TF-IDF and Logistic Regression.</div>',
+    unsafe_allow_html=True,
+)
 
 # Text Input
-user_input = st.text_area("Enter tweet payload for analysis:", placeholder="Type or paste tweet text here...", height=120)
+user_input = st.text_area(
+    "Enter tweet payload for analysis:", placeholder="Type or paste tweet text here...", height=120
+)
+uploaded_export = st.file_uploader(
+    "Optional: upload a local tweet export",
+    type=["json", "jsonl", "ndjson", "csv"],
+)
+
+
+def classify_tweet(tweet_text):
+    """Return model output for one tweet text."""
+    cleaned_text_list, _ = clean_tweets([tweet_text])
+    cleaned_text = cleaned_text_list[0]
+
+    if cleaned_text.strip() == "":
+        return None
+
+    vectorized_text = tfidf_vectorizer.transform([cleaned_text])
+    prediction = best_model.predict(vectorized_text)[0]
+    probabilities = best_model.predict_proba(vectorized_text)[0]
+
+    return {
+        "input": tweet_text,
+        "cleaned_text": cleaned_text,
+        "prediction": prediction,
+        "safe_prob": probabilities[0] * 100,
+        "toxic_prob": probabilities[1] * 100,
+    }
+
+
+def render_classification(result):
+    """Render the existing single-tweet classification view."""
+    cleaned_text = result["cleaned_text"]
+    prediction = result["prediction"]
+    safe_prob = result["safe_prob"]
+    toxic_prob = result["toxic_prob"]
+
+    st.markdown("### Classification Result")
+
+    if prediction == 1:
+        html_result = f"""
+        <div class="result-card-toxic">
+            <p class="card-title text-toxic">🚨 Policy Violation: Hate Speech Detected</p>
+            <p class="confidence-text">The model is <b>{toxic_prob:.1f}%</b> confident this content violates platform safety guidelines.</p>
+        </div>
+        """
+        st.markdown("### 🤖 Agentic Policy Review")
+        with st.spinner("Routing to LLM for deep context analysis..."):
+            llm_explanation = analyze_with_llm(result["input"])
+            st.info(f"**Senior AI Judge:** {llm_explanation}")
+    else:
+        html_result = f"""
+        <div class="result-card-safe">
+            <p class="card-title text-safe">✅ Content Cleared: Safe</p>
+            <p class="confidence-text">The model is <b>{safe_prob:.1f}%</b> confident this content adheres to platform safety guidelines.</p>
+        </div>
+        """
+
+        if toxic_prob > 40.0:
+            st.warning("⚠️ Borderline Content Detected. Routing to LLM for secondary review...")
+            with st.spinner("Analyzing nuance..."):
+                llm_explanation = analyze_with_llm(result["input"])
+                st.info(f"**Secondary AI Review:** {llm_explanation}")
+
+    st.markdown(html_result, unsafe_allow_html=True)
+
+    st.markdown("### Lexical Explainability")
+    st.markdown(
+        f"Text as parsed by the model: <span class='processed-text'>{cleaned_text}</span>", unsafe_allow_html=True
+    )
+    st.write("")
+
+    vocab = tfidf_vectorizer.vocabulary_
+    coefs = best_model.coef_[0]
+
+    word_impacts = []
+    for word in set(cleaned_text.split()):
+        if word in vocab:
+            idx = vocab[word]
+            weight = coefs[idx]
+            word_impacts.append({"Term": word, "Toxicity Coefficient": weight})
+
+    if word_impacts:
+        df_impact = pd.DataFrame(word_impacts)
+        df_impact = df_impact.sort_values(by="Toxicity Coefficient", ascending=False)
+        st.caption(
+            "How specific terms influenced the model's decision (Positive = pushes toward Toxic, Negative = pushes toward Safe):"
+        )
+        st.bar_chart(df_impact.set_index("Term"), color="#1DA1F2")
+    else:
+        st.write("None of the terms in this tweet were found in the model's trained vocabulary.")
+
 
 if st.button("Run Diagnostics", type="primary", use_container_width=True):
-    if user_input.strip() == "":
+    if uploaded_export is not None:
+        try:
+            tweet_texts = load_tweet_texts(uploaded_export.getvalue(), uploaded_export.name)
+        except ValueError as exc:
+            st.error(str(exc))
+            st.stop()
+
+        rows = []
+        for tweet_text in tweet_texts:
+            result = classify_tweet(tweet_text)
+            if result is not None:
+                rows.append(
+                    {
+                        "tweet": tweet_text,
+                        "prediction": "toxic" if result["prediction"] == 1 else "safe",
+                        "safe_probability": round(result["safe_prob"], 1),
+                        "toxic_probability": round(result["toxic_prob"], 1),
+                    }
+                )
+
+        if not rows:
+            st.info("All uploaded tweets were filtered out by preprocessing.")
+        else:
+            st.markdown("### Batch Export Results")
+            results_frame = pd.DataFrame(rows)
+            st.dataframe(results_frame, use_container_width=True)
+            st.download_button(
+                "Download scored CSV",
+                results_frame.to_csv(index=False).encode("utf-8"),
+                file_name="tweet_hate_speech_scores.csv",
+                mime="text/csv",
+            )
+    elif user_input.strip() == "":
         st.warning("Payload empty. Please enter text to analyze.")
     else:
         with st.spinner("Processing through NLP pipeline..."):
-            
-            # Preprocess
-            cleaned_text_list, _ = clean_tweets([user_input])
-            cleaned_text = cleaned_text_list[0]
-            
-            if cleaned_text.strip() == "":
-                st.info("The tweet was filtered out entirely by preprocessing (e.g., it only contained URLs, hashtags, or stop words).")
+            result = classify_tweet(user_input)
+
+            if result is None:
+                st.info(
+                    "The tweet was filtered out entirely by preprocessing (e.g., it only contained URLs, hashtags, or stop words)."
+                )
                 st.stop()
 
-            # Vectorize and Predict
-            vectorized_text = tfidf_vectorizer.transform([cleaned_text])
-            prediction = best_model.predict(vectorized_text)[0]
-            probabilities = best_model.predict_proba(vectorized_text)[0]
-            
-            safe_prob = probabilities[0] * 100
-            toxic_prob = probabilities[1] * 100
-
-            # Custom HTML Output
-            st.markdown("### Classification Result")
-            
-            if prediction == 1:
-                html_result = f"""
-                <div class="result-card-toxic">
-                    <p class="card-title text-toxic">🚨 Policy Violation: Hate Speech Detected</p>
-                    <p class="confidence-text">The model is <b>{toxic_prob:.1f}%</b> confident this content violates platform safety guidelines.</p>
-                </div>
-                """
-                st.markdown(html_result, unsafe_allow_html=True)
-                st.markdown("### 🤖 Agentic Policy Review")
-                with st.spinner("Routing to LLM for deep context analysis..."):
-                    llm_explanation = analyze_with_llm(user_input)
-                    
-                    st.info(f"**Senior AI Judge:** {llm_explanation}")
-            else:
-                html_result = f"""
-                <div class="result-card-safe">
-                    <p class="card-title text-safe">✅ Content Cleared: Safe</p>
-                    <p class="confidence-text">The model is <b>{safe_prob:.1f}%</b> confident this content adheres to platform safety guidelines.</p>
-                </div>
-                """
-
-                if toxic_prob > 40.0:
-                    st.warning("⚠️ Borderline Content Detected. Routing to LLM for secondary review...")
-                    with st.spinner("Analyzing nuance..."):
-                        llm_explanation = analyze_with_llm(user_input)
-                        st.info(f"**Secondary AI Review:** {llm_explanation}")    
-            
-            # Render the HTML card
-            st.markdown(html_result, unsafe_allow_html=True)
-
-            # Explainability Section
-            st.markdown("### Lexical Explainability")
-            st.markdown(f"Text as parsed by the model: <span class='processed-text'>{cleaned_text}</span>", unsafe_allow_html=True)
-            st.write("") # Spacer
-            
-            vocab = tfidf_vectorizer.vocabulary_
-            coefs = best_model.coef_[0]
-
-            # set() dedupes repeated words in the tweet — without it, a word
-            # appearing twice produced two identical rows, which set_index("Term")
-            # below would turn into a duplicate index and render oddly in the chart.
-            word_impacts = []
-            for word in set(cleaned_text.split()):
-                if word in vocab:
-                    idx = vocab[word]
-                    weight = coefs[idx]
-                    word_impacts.append({"Term": word, "Toxicity Coefficient": weight})
-
-            if word_impacts:
-                df_impact = pd.DataFrame(word_impacts)
-                df_impact = df_impact.sort_values(by="Toxicity Coefficient", ascending=False)
-                
-                # Streamlit's native bar chart is clean, but now it sits in a better UI structure
-                st.caption("How specific terms influenced the model's decision (Positive = pushes toward Toxic, Negative = pushes toward Safe):")
-                st.bar_chart(df_impact.set_index("Term"), color="#1DA1F2")
-            else:
-                st.write("None of the terms in this tweet were found in the model's trained vocabulary.")
+            render_classification(result)

@@ -22,7 +22,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Lint (ruff)
-        run: ruff check src tests llm_agent.py main.py app.py
+        run: ruff check src tests llm_agent.py main.py app.py tweet_export.py
 
       - name: Run tests
         run: pytest tests/ -v
